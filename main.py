@@ -4,10 +4,22 @@ import numpy as np
 import csv
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from sklearn.metrics.pairwise import cosine_similarity
+from torch.utils.data import DataLoader
+from datasets import load_dataset
+from data_utils import FloresMultiLangDataset, compare_languages, collate_fn
 
 
 template = 'This sentence: "{sentence}" means in one word:'  # 100% accuracy on sample data
 # template = '{sentence}'  # 10% accuracy on sample data
+
+# Language dictionary mapping language names to their FLORES-200 codes
+languages = {
+    'English': 'eng_Latn',
+    'Chinese_Simplified': 'zho_Hans',
+    'Russian': 'rus_Cyrl',
+    'Dutch': 'nld_Latn',
+    'German': 'deu_Latn'
+}
 
 
 def load_csv(file_path):
@@ -86,35 +98,53 @@ def main():
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
 
-    # Load sentences from CSV
-    sentence_pairs = load_csv(args.csv_path)
-    english_sentences = [pair[0] for pair in sentence_pairs]
-    russian_sentences = [pair[1] for pair in sentence_pairs]
+    # Load FLORES-200 dataset
+    dataset = load_dataset('Muennighoff/flores200', 'all', split='devtest',trust_remote_code=True)
+    flores_dataset = FloresMultiLangDataset(dataset, languages, tokenizer)
+    data_loader = DataLoader(flores_dataset, batch_size=args.batch_size, shuffle=False)
 
-    # Get embeddings
-    print("Generating embeddings for English sentences...")
-    english_embeddings = get_embeddings(model, tokenizer, english_sentences, device, args)
-    print("Generating embeddings for Russian sentences...")
-    russian_embeddings = get_embeddings(model, tokenizer, russian_sentences, device, args)
+    # Iterate through batches
+    print("\nEvaluating multi-language comparison...")
+    for batch in data_loader:
+        embeddings_dict = {}
 
-    # Evaluate translation accuracy
-    correct_matches = 0
-    total_pairs = len(sentence_pairs)
+        # Get embeddings for each language
+        for lang_name in languages.keys():
+            inputs = batch[f"{lang_name}"]
+            embeddings_dict[lang_name] = get_embeddings(model, inputs, tokenizer, device, args)
+            
+        # compare_languages(embeddings_dict, languages)
+    print(embeddings_dict)
 
-    print("\nEvaluating translation accuracy...")
-    for i, (eng_sentence, true_rus_sentence) in enumerate(sentence_pairs):
-        most_similar_idx = find_most_similar(english_embeddings[i], russian_embeddings)
-        predicted_rus_sentence = russian_sentences[most_similar_idx]
+    # # Load sentences from CSV
+    # sentence_pairs = load_csv(args.csv_path)
+    # english_sentences = [pair[0] for pair in sentence_pairs]
+    # russian_sentences = [pair[1] for pair in sentence_pairs]
 
-        if predicted_rus_sentence == true_rus_sentence:
-            correct_matches += 1
-        else:
-            print(f"\nMismatch for English sentence: {eng_sentence}")
-            print(f"True Russian translation: {true_rus_sentence}")
-            print(f"Predicted Russian translation: {predicted_rus_sentence}")
+    # # Get embeddings
+    # print("Generating embeddings for English sentences...")
+    # english_embeddings = get_embeddings(model, tokenizer, english_sentences, device, args)
+    # print("Generating embeddings for Russian sentences...")
+    # russian_embeddings = get_embeddings(model, tokenizer, russian_sentences, device, args)
 
-    accuracy = correct_matches / total_pairs
-    print(f"\nAccuracy: {accuracy:.2%} ({correct_matches}/{total_pairs})")
+    # # Evaluate translation accuracy
+    # correct_matches = 0
+    # total_pairs = len(sentence_pairs)
+
+    # print("\nEvaluating translation accuracy...")
+    # for i, (eng_sentence, true_rus_sentence) in enumerate(sentence_pairs):
+    #     most_similar_idx = find_most_similar(english_embeddings[i], russian_embeddings)
+    #     predicted_rus_sentence = russian_sentences[most_similar_idx]
+
+    #     if predicted_rus_sentence == true_rus_sentence:
+    #         correct_matches += 1
+    #     else:
+    #         print(f"\nMismatch for English sentence: {eng_sentence}")
+    #         print(f"True Russian translation: {true_rus_sentence}")
+    #         print(f"Predicted Russian translation: {predicted_rus_sentence}")
+
+    # accuracy = correct_matches / total_pairs
+    # print(f"\nAccuracy: {accuracy:.2%} ({correct_matches}/{total_pairs})")
 
 
 if __name__ == "__main__":
