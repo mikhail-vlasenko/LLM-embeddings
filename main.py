@@ -1,16 +1,23 @@
 import argparse
 import torch
 import numpy as np
+import pandas as pd
 import csv
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 from datasets import load_dataset
 from data_utils import FloresMultiLangDataset, compare_languages, collate_fn
+from eval import evaluate_translation_accuracy
 
-
-template = 'This sentence: "{sentence}" means in one word:'  # 100% accuracy on sample data
-# template = '{sentence}'  # 10% accuracy on sample data
+# Define the sentence template for each language
+template = {
+    'English': 'This sentence: "{sentence}" means in one word:',
+    'Chinese_Simplified': '这句话: "{sentence}" 用一个词来表示是:',
+    'Russian': 'Это предложение: "{sentence}" означает одним словом:',
+    'Dutch': 'Deze zin: "{sentence}" betekent in één woord:',
+    'German': 'Dieser Satz: "{sentence}" bedeutet mit einem Wort:'
+}
 
 # Language dictionary mapping language names to their FLORES-200 codes
 languages = {
@@ -21,18 +28,16 @@ languages = {
     'German': 'deu_Latn'
 }
 
-
 def load_csv(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
         next(reader)  # Skip header
         return list(reader)
 
-
-def get_embeddings(model, tokenizer, sentences, device, args):
+def get_embeddings(model, tokenizer, sentences, device, target_language, args):
     embeddings = []
     for sentence in sentences:
-        sentence = template.format(sentence=sentence)
+        sentence = template[target_language].format(sentence=sentence)
         inputs = tokenizer(sentence, return_tensors='pt', padding=True, truncation=True, max_length=512)
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
@@ -47,13 +52,11 @@ def get_embeddings(model, tokenizer, sentences, device, args):
                 outputs = hidden_states[-1][:, -1, :]
 
             if outputs.dtype == torch.bfloat16:
-                # bfloat16 not support for .numpy()
                 outputs = outputs.float()
 
             embeddings.append(outputs.cpu().numpy())
 
     return np.vstack(embeddings)
-
 
 def find_most_similar(query_embedding, target_embeddings):
     similarities = cosine_similarity(query_embedding.reshape(1, -1), target_embeddings)[0]
@@ -63,8 +66,7 @@ def find_most_similar(query_embedding, target_embeddings):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, default="microsoft/Phi-3.5-mini-instruct", help="Transformers' model name or path")
-    parser.add_argument("--csv_path", type=str, default="sample_data.csv",
-                        help="Path to the CSV file with English-Russian sentence pairs")
+    parser.add_argument("--csv_path", type=str, default="sample_data.csv", help="Path to the CSV file with English-Russian sentence pairs")
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
     args = parser.parse_args()
@@ -99,23 +101,32 @@ def main():
     tokenizer.padding_side = "left"  # Allow batched inference
 
     # Load FLORES-200 dataset
-    dataset = load_dataset('Muennighoff/flores200', 'all', split='devtest',trust_remote_code=True)
-    flores_dataset = FloresMultiLangDataset(dataset, languages, tokenizer)
+    dataset = load_dataset('Muennighoff/flores200', 'all', split='devtest', trust_remote_code=True)
+    flores_dataset = FloresMultiLangDataset(dataset, languages)
     data_loader = DataLoader(flores_dataset, batch_size=64, shuffle=False)
 
-    # Iterate through batches
-    print("\nEvaluating multi-language comparison...")
+    # Initialize list to store results
+    all_results = []
+
+    # Iterate through batches and evaluate for each language
     for batch in data_loader:
-        embeddings_dict = {}
+        for target_language in languages.keys():
+            print(f"\nEvaluating target language: {target_language}")
 
-        # Get embeddings for each language
-        for lang_name in languages.keys():
-            inputs = batch[f"{lang_name}"]
-            embeddings_dict[lang_name] = get_embeddings(model, inputs, tokenizer, device, args)
-            
-        # compare_languages(embeddings_dict, languages)
-    print(embeddings_dict)
+            embeddings_dict = {}
+            # Get embeddings for each language
+            for lang_name in languages.keys():
+                inputs = batch[f"{lang_name}"]
+                embeddings_dict[lang_name] = get_embeddings(model, tokenizer, inputs, device, lang_name, args)
 
+            # Evaluate translation accuracy for the current target language
+            results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=3)
+            all_results.append(results_table)
+
+
+    # Print a summary
+    print("\nFinal Results:")
+    print(all_results)
 
 if __name__ == "__main__":
     main()
