@@ -30,6 +30,61 @@ def recall_at_k(similarity, targets, k=3):
     recall_at_k = correct / similarity.shape[0]
     return recall_at_k
 
+# Updated function to evaluate translation accuracy and save average recall
+def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
+    total_recall_1_per_language = {lang: 0 for lang in embeddings_dict if lang != target_language}
+    total_recall_k_per_language = {lang: 0 for lang in embeddings_dict if lang != target_language}
+    total_pairs = len(embeddings_dict[target_language])  # Assuming target language is the reference
+
+    # Target array, where each sentence in the target language should map to its corresponding index in each other language
+    targets = list(range(total_pairs))
+
+    print("\nEvaluating translation accuracy using recall@k...")
+
+    # Loop through each sentence embedding in the target language
+    for i, target_embedding in enumerate(embeddings_dict[target_language]):
+
+        for lang_name, lang_embeddings in embeddings_dict.items():
+            if lang_name == target_language:
+                continue  # Skip comparing the target language with itself
+
+            # Compute similarity between the current target sentence embedding and all sentence embeddings in the other language
+            similarity = compute_similarity(target_embedding.reshape(1, -1), lang_embeddings)
+
+            # Calculate recall@1 and recall@k for this specific sentence
+            recall_1 = recall_at_1(similarity, [i])  # i is the target index for the corresponding sentence
+            recall_k = recall_at_k(similarity, [i], k=k)
+
+            # Accumulate total recall values for each language
+            total_recall_1_per_language[lang_name] += recall_1
+            total_recall_k_per_language[lang_name] += recall_k
+
+    # Calculate average recall@1 and recall@k for each language
+    avg_recall_1_per_language = {lang: total_recall_1_per_language[lang] / total_pairs for lang in total_recall_1_per_language}
+    avg_recall_k_per_language = {lang: total_recall_k_per_language[lang] / total_pairs for lang in total_recall_k_per_language}
+
+    # Save the average recall scores into a table
+    results_table = []
+    for lang_name in avg_recall_1_per_language:
+        results_table.append({
+            'Target Language': target_language,
+            'Compared Language': lang_name,
+            'Avg Recall@1': avg_recall_1_per_language[lang_name],
+            'Avg Recall@k': avg_recall_k_per_language[lang_name]
+        })
+
+    # Convert the results to a DataFrame
+    results_df = pd.DataFrame(results_table)
+
+    # Save the DataFrame to a CSV file
+    results_df.to_csv('average_translation_accuracy_results.csv', index=False)
+
+    print("\nAverage recall results saved to average_translation_accuracy_results.csv")
+    print(results_df)
+    return results_table
+
+
+
 embs = np.array([[1.,2.,3.], 
                 [3.,4.,5.]])
 embs_to_compare = np.array([[1.,2.,3.], 
