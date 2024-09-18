@@ -11,7 +11,7 @@ languages = {
 }
 
 class FloresMultiLangDataset(Dataset):
-    def __init__(self, dataset, languages, tokenizer, max_length=512):
+    def __init__(self, dataset, languages, max_length=512):
         """
         Custom PyTorch Dataset to load multiple languages from FLORES-200.
         Args:
@@ -22,7 +22,7 @@ class FloresMultiLangDataset(Dataset):
         """
         self.dataset = dataset
         self.languages = languages
-        self.tokenizer = tokenizer
+        # self.tokenizer = tokenizer
         self.max_length = max_length
 
     def __len__(self):
