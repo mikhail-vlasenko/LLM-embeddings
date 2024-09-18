@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def normalize_embeddings(embeddings):
     return (embeddings.T / np.linalg.norm(embeddings, axis=1)).T
@@ -75,12 +76,8 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
 
     # Convert the results to a DataFrame
     results_df = pd.DataFrame(results_table)
-
-    # Save the DataFrame to a CSV file
-    results_df.to_csv('average_translation_accuracy_results.csv', index=False)
-
-    print("\nAverage recall results saved to average_translation_accuracy_results.csv")
     print(results_df)
+    
     return results_table
 
 

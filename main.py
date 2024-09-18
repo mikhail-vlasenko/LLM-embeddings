@@ -121,12 +121,20 @@ def main():
 
             # Evaluate translation accuracy for the current target language
             results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=3)
-            all_results.append(results_table)
+            all_results += results_table
 
 
-    # Print a summary
-    print("\nFinal Results:")
-    print(all_results)
+    # Convert the list to a DataFrame
+    df = pd.DataFrame(all_results)
+
+    # Dynamically pivot the DataFrame based on target and compared languages
+    pivot_df = df.pivot(index='Target Language', columns='Compared Language', values='Avg Recall@k')
+
+    # Save the DataFrame to a CSV file
+    pivot_df.to_csv('average_translation_accuracy_results.csv', index=False)
+
+    # Show the result
+    print(pivot_df)
 
 if __name__ == "__main__":
     main()
