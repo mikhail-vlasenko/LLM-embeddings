@@ -7,9 +7,9 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 from datasets import load_dataset
-from data_utils import FloresMultiLangDataset, compare_languages, collate_fn
+from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
-from util import save_embeddings
+from utils import save_embeddings
 from tqdm import tqdm
 
 # Define the sentence template for each language
@@ -140,7 +140,7 @@ def main():
                         (embeddings_dict[target_language][lang_name], embeddings),
                         axis=0
                     )
-                    
+
     save_embeddings(embeddings_dict,"embedding.csv")
     # Stage 2: Evaluate translation accuracy using the stored embeddings
     # Initialize list to store results
