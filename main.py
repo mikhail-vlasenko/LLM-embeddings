@@ -105,19 +105,31 @@ def main():
     flores_dataset = FloresMultiLangDataset(dataset, languages)
     data_loader = DataLoader(flores_dataset, batch_size=64, shuffle=False)
 
-    # Initialize list to store results
-    all_results = []
+    # Initialize dictionary to store embeddings for each target language and language pair
+    embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in languages.keys()}
 
-    # Iterate through batches and evaluate for each language
-    for batch in data_loader:
+    # Stage 1: Save embeddings for each language and target language
+    print("Generating embeddings for all languages")
+
+    # Iterate through batches and generate embeddings
+    for batch in tqdm(data_loader, desc="Embedding Progress", leave=True):
         for target_language in languages.keys():
-            print(f"\nEvaluating target language: {target_language}")
-
-            embeddings_dict = {}
-            # Get embeddings for each language
             for lang_name in languages.keys():
+
                 inputs = batch[f"{lang_name}"]
-                embeddings_dict[lang_name] = get_embeddings(model, tokenizer, inputs, device, lang_name, args)
+                embeddings = get_embeddings(model, tokenizer, inputs, device, target_language, args)
+
+                if len(embeddings_dict[target_language][lang_name]) == 0:
+                    # If it's the first batch, initialize the array
+                    embeddings_dict[target_language][lang_name] = embeddings
+           
+                else:
+                    # Concatenate the new embeddings with the existing array
+                    embeddings_dict[target_language][lang_name] = np.concatenate(
+                        (embeddings_dict[target_language][lang_name], embeddings),
+                        axis=0
+                    )
+                    
 
             # Evaluate translation accuracy for the current target language
             results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=3)
