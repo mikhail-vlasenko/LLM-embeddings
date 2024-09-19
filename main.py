@@ -131,10 +131,14 @@ def main():
                     )
                     
 
-            # Evaluate translation accuracy for the current target language
-            results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=3)
-            all_results += results_table
+    for target_language in languages.keys():
+        print(f"\nEvaluating target language: {target_language}")
 
+        # Evaluate using the embeddings in the dictionary for current target language vs. other languages
+        results_table = evaluate_translation_accuracy(embeddings_dict[target_language], target_language, k=args.k)
+
+        # Store the results for each comparison
+        all_results += results_table
 
     # Convert the list to a DataFrame
     df = pd.DataFrame(all_results)
