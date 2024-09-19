@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from data_utils import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
+from util import save_embeddings
+from tqdm import tqdm
 
 # Define the sentence template for each language
 template = {
@@ -66,9 +68,13 @@ def find_most_similar(query_embedding, target_embeddings):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, default="microsoft/Phi-3.5-mini-instruct", help="Transformers' model name or path")
-    parser.add_argument("--csv_path", type=str, default="sample_data.csv", help="Path to the CSV file with English-Russian sentence pairs")
+    parser.add_argument("--csv_path", type=str, default="sample_data.csv", help="Path to the CSV file with sentence pairs")
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
+    parser.add_argument("--k", type=int, default=3, help="The number of most similar items for recall (k)")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for DataLoader")
+    parser.add_argument("--dataset_name", type=str, default='Muennighoff/flores200', help="Name of the dataset to load")
+    parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to load from the dataset")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -100,10 +106,15 @@ def main():
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
 
-    # Load FLORES-200 dataset
-    dataset = load_dataset('Muennighoff/flores200', 'all', split='devtest', trust_remote_code=True)
+    # Load dataset based on argument
+    dataset = load_dataset(args.dataset_name, 'all', split='devtest', trust_remote_code=True)
+
+    # Select only max_samples if specified
+    if args.max_samples is not None:
+        dataset = dataset.select(range(min(args.max_samples, len(dataset))))
+
     flores_dataset = FloresMultiLangDataset(dataset, languages)
-    data_loader = DataLoader(flores_dataset, batch_size=64, shuffle=False)
+    data_loader = DataLoader(flores_dataset, batch_size=args.batch_size, shuffle=False)
 
     # Initialize dictionary to store embeddings for each target language and language pair
     embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in languages.keys()}

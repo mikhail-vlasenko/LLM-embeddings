@@ -37,11 +37,6 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     total_recall_k_per_language = {lang: 0 for lang in embeddings_dict if lang != target_language}
     total_pairs = len(embeddings_dict[target_language])  # Assuming target language is the reference
 
-    # Target array, where each sentence in the target language should map to its corresponding index in each other language
-    targets = list(range(total_pairs))
-
-    print("\nEvaluating translation accuracy using recall@k...")
-
     # Loop through each sentence embedding in the target language
     for i, target_embedding in enumerate(embeddings_dict[target_language]):
 
@@ -77,7 +72,7 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     # Convert the results to a DataFrame
     results_df = pd.DataFrame(results_table)
     print(results_df)
-    
+
     return results_table
 
 
