@@ -1,0 +1,21 @@
+Target Language,Compared Language,Avg Recall@1,Avg Recall@k
+English,Chinese_Simplified,1.0,1.0
+English,Russian,0.5,1.0
+English,Dutch,0.5,1.0
+English,German,1.0,1.0
+Chinese_Simplified,English,1.0,1.0
+Chinese_Simplified,Russian,0.5,1.0
+Chinese_Simplified,Dutch,0.5,1.0
+Chinese_Simplified,German,0.5,1.0
+Russian,English,1.0,1.0
+Russian,Chinese_Simplified,0.5,1.0
+Russian,Dutch,0.5,1.0
+Russian,German,0.5,1.0
+Dutch,English,0.5,1.0
+Dutch,Chinese_Simplified,0.5,1.0
+Dutch,Russian,0.5,1.0
+Dutch,German,1.0,1.0
+German,English,1.0,1.0
+German,Chinese_Simplified,1.0,1.0
+German,Russian,0.5,1.0
+German,Dutch,0.5,1.0
