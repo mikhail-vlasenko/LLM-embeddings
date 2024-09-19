@@ -130,6 +130,10 @@ def main():
                         axis=0
                     )
                     
+    save_embeddings(embeddings_dict,"embedding.csv")
+    # Stage 2: Evaluate translation accuracy using the stored embeddings
+    # Initialize list to store results
+    all_results = []
 
     for target_language in languages.keys():
         print(f"\nEvaluating target language: {target_language}")
@@ -143,12 +147,15 @@ def main():
     # Convert the list to a DataFrame
     df = pd.DataFrame(all_results)
 
+    df.to_csv('average_accuracy_results.csv', index=False)
+
     # Dynamically pivot the DataFrame based on target and compared languages
     pivot_df = df.pivot(index='Target Language', columns='Compared Language', values='Avg Recall@k')
 
     # Save the DataFrame to a CSV file
-    pivot_df.to_csv('average_translation_accuracy_results.csv', index=False)
+    pivot_df.to_csv('average_accuracy_table.csv', index=True)
 
+    print("\nFinal Results:")
     # Show the result
     print(pivot_df)
 
