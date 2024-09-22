@@ -26,8 +26,8 @@ languages = {
     'English': 'eng_Latn',
     'Chinese_Simplified': 'zho_Hans',
     'Russian': 'rus_Cyrl',
-    'Dutch': 'nld_Latn',
-    'German': 'deu_Latn'
+    # 'Dutch': 'nld_Latn',
+    # 'German': 'deu_Latn'
 }
 
 def load_csv(file_path):
@@ -36,10 +36,13 @@ def load_csv(file_path):
         next(reader)  # Skip header
         return list(reader)
 
-def get_embeddings(model, tokenizer, sentences, device, target_language, args):
+def get_embeddings(model, tokenizer, sentences, device, language, args):
     embeddings = []
     for sentence in sentences:
-        sentence = template[target_language].format(sentence=sentence)
+        if args.self_prompts:
+            sentence = template[language].format(sentence=sentence)
+        else:
+            sentence = template["English"].format(sentence=sentence)
         inputs = tokenizer(sentence, return_tensors='pt', padding=True, truncation=True, max_length=512)
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
@@ -73,9 +76,12 @@ def main():
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
     parser.add_argument("--k", type=int, default=3, help="The number of most similar items for recall (k)")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for DataLoader")
-    parser.add_argument("--dataset_name", type=str, default='Muennighoff/flores200', help="Name of the dataset to load")
+    parser.add_argument("--dataset_name", type=str, default='facebook/flores', help="Name of the dataset to load")
     parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to load from the dataset")
+    parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
+
     args = parser.parse_args()
+    # args.self_prompts = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -94,6 +100,7 @@ def main():
             ),
             torch_dtype=torch.float16,
             device_map='auto',
+
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path,
@@ -107,7 +114,7 @@ def main():
     tokenizer.padding_side = "left"  # Allow batched inference
 
     # Load dataset based on argument
-    dataset = load_dataset(args.dataset_name, 'all', split='devtest', trust_remote_code=True)
+    dataset = load_dataset(args.dataset_name, 'all', split='devtest')
 
     # Select only max_samples if specified
     if args.max_samples is not None:
@@ -117,31 +124,31 @@ def main():
     data_loader = DataLoader(flores_dataset, batch_size=args.batch_size, shuffle=False)
 
     # Initialize dictionary to store embeddings for each target language and language pair
-    embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in languages.keys()}
+    # embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in languages.keys()}
+    embeddings_dict = {target_language: np.array([]) for target_language in languages.keys()}
 
     # Stage 1: Save embeddings for each language and target language
     print("Generating embeddings for all languages")
 
     # Iterate through batches and generate embeddings
     for batch in tqdm(data_loader, desc="Embedding Progress", leave=True):
-        for target_language in languages.keys():
-            for lang_name in languages.keys():
+        for lang_name in languages.keys():
 
-                inputs = batch[f"{lang_name}"]
-                embeddings = get_embeddings(model, tokenizer, inputs, device, target_language, args)
+            inputs = batch[f"{lang_name}"]
+            embeddings = get_embeddings(model, tokenizer, inputs, device, lang_name, args)
 
-                if len(embeddings_dict[target_language][lang_name]) == 0:
-                    # If it's the first batch, initialize the array
-                    embeddings_dict[target_language][lang_name] = embeddings
-           
-                else:
-                    # Concatenate the new embeddings with the existing array
-                    embeddings_dict[target_language][lang_name] = np.concatenate(
-                        (embeddings_dict[target_language][lang_name], embeddings),
-                        axis=0
-                    )
+            if len(embeddings_dict[lang_name]) == 0:
+                # If it's the first batch, initialize the array
+                embeddings_dict[lang_name] = embeddings
 
-    save_embeddings(embeddings_dict,"embedding.csv")
+            else:
+                # Concatenate the new embeddings with the existing array
+                embeddings_dict[lang_name] = np.concatenate(
+                    (embeddings_dict[lang_name], embeddings),
+                    axis=0
+                )
+
+    save_embeddings(embeddings_dict, "embedding.pkl")
     # Stage 2: Evaluate translation accuracy using the stored embeddings
     # Initialize list to store results
     all_results = []
@@ -150,7 +157,7 @@ def main():
         print(f"\nEvaluating target language: {target_language}")
 
         # Evaluate using the embeddings in the dictionary for current target language vs. other languages
-        results_table = evaluate_translation_accuracy(embeddings_dict[target_language], target_language, k=args.k)
+        results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=args.k)
 
         # Store the results for each comparison
         all_results += results_table
