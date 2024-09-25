@@ -21,7 +21,6 @@ template = {
     'German': 'Dieser Satz: "{sentence}" bedeutet mit einem Wort:'
 }
 
-# Language dictionary mapping language names to their FLORES-200 codes
 languages = {
     'English': 'eng_Latn',
     'Chinese_Simplified': 'zho_Hans',
@@ -75,6 +74,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for DataLoader")
     parser.add_argument("--dataset_name", type=str, default='Muennighoff/flores200', help="Name of the dataset to load")
     parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to load from the dataset")
+    parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -102,6 +102,7 @@ def main():
                                                      trust_remote_code=True,
                                                      load_in_8bit=args.load_kbit == 8)
 
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
@@ -113,18 +114,36 @@ def main():
     if args.max_samples is not None:
         dataset = dataset.select(range(min(args.max_samples, len(dataset))))
 
+    # Language dictionary mapping language names to their FLORES-200 codes
+    languages = {
+        'English': 'eng_Latn',
+        'Chinese_Simplified': 'zho_Hans',
+        'Russian': 'rus_Cyrl',
+        'Dutch': 'nld_Latn',
+        'German': 'deu_Latn'
+    }
+
+    if args.self_prompts:
+        target_languages = languages
+
+    else:
+        target_languages = {
+            'English': 'eng_Latn'
+        }
+
+
     flores_dataset = FloresMultiLangDataset(dataset, languages)
     data_loader = DataLoader(flores_dataset, batch_size=args.batch_size, shuffle=False)
 
     # Initialize dictionary to store embeddings for each target language and language pair
-    embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in languages.keys()}
+    embeddings_dict = {target_language: {lang_name: np.array([]) for lang_name in languages.keys()} for target_language in target_languages.keys()}
 
     # Stage 1: Save embeddings for each language and target language
     print("Generating embeddings for all languages")
 
     # Iterate through batches and generate embeddings
     for batch in tqdm(data_loader, desc="Embedding Progress", leave=True):
-        for target_language in languages.keys():
+        for target_language in target_languages.keys():
             for lang_name in languages.keys():
 
                 inputs = batch[f"{lang_name}"]
@@ -146,7 +165,7 @@ def main():
     # Initialize list to store results
     all_results = []
 
-    for target_language in languages.keys():
+    for target_language in target_languages.keys():
         print(f"\nEvaluating target language: {target_language}")
 
         # Evaluate using the embeddings in the dictionary for current target language vs. other languages
