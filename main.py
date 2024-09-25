@@ -160,7 +160,7 @@ def main():
                         axis=0
                     )
 
-    save_embeddings(embeddings_dict,"embedding.csv")
+    save_embeddings(embeddings_dict, "embedding.pkl")
     # Stage 2: Evaluate translation accuracy using the stored embeddings
     # Initialize list to store results
     all_results = []
