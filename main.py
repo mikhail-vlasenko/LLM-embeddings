@@ -26,7 +26,6 @@ template = {
     'Polish': 'To zdanie: "{sentence}" oznacza jednym słowem:',
 }
 
-# Language dictionary mapping language names to their FLORES-200 codes
 languages = {
     'English': 'eng_Latn',
     'Chinese_Simplified': 'zho_Hans',
@@ -73,9 +72,11 @@ def get_embeddings(model, tokenizer, sentences, device, language, args):
 
     return np.vstack(embeddings)
 
+
 def find_most_similar(query_embedding, target_embeddings):
     similarities = cosine_similarity(query_embedding.reshape(1, -1), target_embeddings)[0]
     return np.argmax(similarities)
+
 
 def make_embeddings_dict(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -95,7 +96,6 @@ def make_embeddings_dict(args):
             ),
             torch_dtype=torch.float16,
             device_map='auto',
-
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path,
@@ -169,6 +169,7 @@ def main():
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
     # Stage 2: Evaluate translation accuracy using the stored embeddings
+    # Initialize list to store results
     all_results = []
 
     for target_language in languages.keys():
