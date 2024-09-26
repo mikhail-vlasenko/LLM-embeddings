@@ -109,7 +109,7 @@ def make_embeddings_dict(args):
     tokenizer.padding_side = "left"  # Allow batched inference
 
     # Load dataset based on argument
-    dataset = load_dataset(args.dataset_name, 'all', split='devtest')
+    dataset = load_dataset(args.dataset_name, 'all', split='devtest',trust_remote_code=True)
 
     # Select only max_samples if specified
     if args.max_samples is not None:
