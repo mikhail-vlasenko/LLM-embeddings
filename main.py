@@ -158,10 +158,10 @@ def main():
 
     args = parser.parse_args()
     # args.self_prompts = True
-    args.load_from_file = "embedding_english_prompts.pkl"
+    # args.load_from_file = "embedding_english_prompts.pkl"
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
-
+ 
     if args.load_from_file:
         embeddings_dict = load_embeddings(args.load_from_file)
     else:
