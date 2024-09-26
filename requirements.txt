@@ -5,3 +5,4 @@ scikit-learn
 torch==2.0.0
 setuptools==49.3.0
 seacrowd==0.2.0
+seaborn
