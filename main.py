@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
-from utils import save_embeddings, plot_heatmap, load_embeddings
+from improvements.distribution_shift import subtract_mean
+from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
 from tqdm import tqdm
 
 # Define the sentence template for each language
@@ -155,21 +156,29 @@ def main():
     parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to load from the dataset")
     parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
     parser.add_argument("--load_from_file", type=str, default="", help="Load embeddings from file")
+    parser.add_argument("--subtract_means", default=False, action="store_true", help="Subtract language-wide means from embeddings")
 
     args = parser.parse_args()
     # args.self_prompts = True
+    # args.subtract_means = True
+    # args.k = 1
     # args.load_from_file = "embedding_english_prompts.pkl"
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
- 
+    name_suffix += f"_sub_means" if args.subtract_means else ""
+
     if args.load_from_file:
         embeddings_dict = load_embeddings(args.load_from_file)
     else:
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    # Stage 2: Evaluate translation accuracy using the stored embeddings
-    # Initialize list to store results
+    # plot_pca_means(embeddings_dict)
+
+    if args.subtract_means:
+        # acts inplace
+        subtract_mean(embeddings_dict)
+
     all_results = []
 
     for target_language in languages.keys():
@@ -193,10 +202,11 @@ def main():
     pivot_df.to_csv(f'average_accuracy_table_{name_suffix}.csv', index=True)
 
     print("\nFinal Results:")
-    # Show the result
     print(pivot_df)
 
     plot_heatmap(pivot_df, f'Average Recall@{args.k} for {name_suffix}')
+    print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
+
 
 if __name__ == "__main__":
     main()

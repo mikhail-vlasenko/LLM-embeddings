@@ -31,7 +31,7 @@ def recall_at_k(similarity, targets, k=3):
     recall_at_k = correct / similarity.shape[0]
     return recall_at_k
 
-# Updated function to evaluate translation accuracy and save average recall
+
 def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     total_recall_1_per_language = {lang: 0 for lang in embeddings_dict if lang != target_language}
     total_recall_k_per_language = {lang: 0 for lang in embeddings_dict if lang != target_language}
@@ -39,7 +39,6 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
 
     # Loop through each sentence embedding in the target language
     for i, target_embedding in enumerate(embeddings_dict[target_language]):
-
         for lang_name, lang_embeddings in embeddings_dict.items():
             if lang_name == target_language:
                 continue  # Skip comparing the target language with itself
@@ -74,7 +73,6 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     print(results_df)
 
     return results_table
-
 
 
 embs = np.array([[1.,2.,3.], 
