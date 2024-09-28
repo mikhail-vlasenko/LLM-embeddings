@@ -10,6 +10,7 @@ from datasets import load_dataset
 from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
+from improvements.contrastive_learning import contrastive_learning
 from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
 from tqdm import tqdm
 
@@ -157,6 +158,7 @@ def main():
     parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
     parser.add_argument("--load_from_file", type=str, default="", help="Load embeddings from file")
     parser.add_argument("--subtract_means", default=False, action="store_true", help="Subtract language-wide means from embeddings")
+    parser.add_argument("--contrastive_learning", default=False, action="store_true", help="Apply an MLP on the embeddings that has been trained with contrastive learning")
 
     args = parser.parse_args()
     # args.self_prompts = True
@@ -166,6 +168,7 @@ def main():
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
     name_suffix += f"_sub_means" if args.subtract_means else ""
+    name_suffix += f"_contrastive_learning" if args.contrastive_learning else ""
 
     if args.load_from_file:
         embeddings_dict = load_embeddings(args.load_from_file)
@@ -178,6 +181,8 @@ def main():
     if args.subtract_means:
         # acts inplace
         subtract_mean(embeddings_dict)
+    if args.contrastive_learning:
+        contrastive_learning(embeddings_dict, name_suffix.split("_")[0])
 
     all_results = []
 
