@@ -21,9 +21,8 @@ def apply_model(embedding_dict, model_path, normalize=True):
     num_sentences, embedding_dim = embedding_dict[list(embedding_dict.keys())[0]].shape
 
     train_size = int(num_sentences * 0.7)  # fixme: magic number
-    model = torch.load(model_path, weights_only=False, map_location="cuda")
+    model = torch.load(model_path, weights_only=False, map_location="cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
-    model.to("cuda")
 
     def normalize_tensor(tensor):
         if normalize:
