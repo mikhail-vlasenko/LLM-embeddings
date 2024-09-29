@@ -3,6 +3,8 @@ import torch
 import numpy as np
 import pandas as pd
 import csv
+
+from torch import nn
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
@@ -10,9 +12,25 @@ from datasets import load_dataset
 from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
-from improvements.contrastive_learning import contrastive_learning
-from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
+from improvements.contrastive_learning import apply_model
+from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means_and_variances
 from tqdm import tqdm
+
+
+# for torch load
+class MLP(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+
 
 # Define the sentence template for each language
 template = {
@@ -164,7 +182,8 @@ def main():
     # args.self_prompts = True
     # args.subtract_means = True
     # args.k = 1
-    # args.load_from_file = "embedding_english_prompts.pkl"
+    args.load_from_file = "embedding_english_prompts.pkl"
+    # args.contrastive_learning = True
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
     name_suffix += f"_sub_means" if args.subtract_means else ""
@@ -176,13 +195,13 @@ def main():
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    # plot_pca_means(embeddings_dict)
-
     if args.subtract_means:
         # acts inplace
         subtract_mean(embeddings_dict)
     if args.contrastive_learning:
-        contrastive_learning(embeddings_dict, name_suffix.split("_")[0])
+        apply_model(embeddings_dict)
+
+    plot_pca_means_and_variances(embeddings_dict)
 
     all_results = []
 
