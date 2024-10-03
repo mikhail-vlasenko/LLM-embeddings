@@ -10,7 +10,7 @@ from datasets import load_dataset
 from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
-from improvements.contrastive_learning import contrastive_learning
+from improvements.contrastive_learning import contrastive_learning, apply_mlp
 from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
 from tqdm import tqdm
 
@@ -192,7 +192,8 @@ def main():
         # acts inplace
         subtract_mean(embeddings_dict)
     if args.contrastive_learning:
-        contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args.reuse_mlp)
+        mlp = contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args.reuse_mlp)
+        apply_mlp(test_embeddings_dict, mlp)
 
     all_results = []
 

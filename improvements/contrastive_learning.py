@@ -181,8 +181,10 @@ def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
 
         # save model
         torch.save(mlp.state_dict(), save_model_path)
+    return mlp
         
-    
+def apply_mlp(embedding_dict, mlp):
     # pass the embeddings through the mlp
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for lang in embedding_dict:
         embedding_dict[lang] = mlp(torch.tensor(embedding_dict[lang]).to(device)).cpu().detach().numpy()
