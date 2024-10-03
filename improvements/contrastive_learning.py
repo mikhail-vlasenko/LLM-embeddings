@@ -103,19 +103,37 @@ class MLP(nn.Module):
         return x
 
 # Define the contrastive loss
-def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=1.0):
+# def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=1.0):
+#     pos_loss = sum(
+#         torch.norm(embeddings[idx1] - embeddings[idx2], p=2) ** 2
+#         for idx1, idx2 in pos_idx_pairs
+#     )
+
+#     neg_loss = sum(
+#         max(0, margin - torch.norm(embeddings[idx1] - embeddings[idx2], p=2)) ** 2
+#         for idx1, idx2 in neg_idx_pairs
+#     )
+
+#     return (pos_loss + neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
+
+def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=0.5):
+    cos = nn.CosineSimilarity(dim=0, eps=1e-6)
+    
     pos_loss = sum(
-        torch.norm(embeddings[idx1] - embeddings[idx2], p=2) ** 2
+        (1 - cos(embeddings[idx1], embeddings[idx2])) ** 2
         for idx1, idx2 in pos_idx_pairs
     )
 
     neg_loss = sum(
-        max(0, margin - torch.norm(embeddings[idx1] - embeddings[idx2], p=2)) ** 2
+        max(0, cos(embeddings[idx1], embeddings[idx2]) - margin) ** 2
         for idx1, idx2 in neg_idx_pairs
     )
 
     return (pos_loss + neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
     
+def normalize_tensor(tensor):
+    return tensor / torch.norm(tensor, dim=-1, keepdim=True)
+ 
 def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
     save_model_path = f"result/mlp_{prompt_type}_prompt.pt"
     num_sentences, embedding_dim = embedding_dict[list(embedding_dict.keys())[0]].shape
@@ -187,4 +205,4 @@ def apply_mlp(embedding_dict, mlp):
     # pass the embeddings through the mlp
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for lang in embedding_dict:
-        embedding_dict[lang] = mlp(torch.tensor(embedding_dict[lang]).to(device)).cpu().detach().numpy()
+        embedding_dict[lang] = normalize_tensor(mlp(torch.tensor(embedding_dict[lang]).to(device))).cpu().detach().numpy()
