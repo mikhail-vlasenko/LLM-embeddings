@@ -11,7 +11,7 @@ from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
 from improvements.contrastive_learning import contrastive_learning, apply_mlp
-from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
+from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means_and_variances
 from tqdm import tqdm
 
 # Define the sentence template for each language
@@ -178,7 +178,7 @@ def main():
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    # plot_pca_means(embeddings_dict)
+    plot_pca_means_and_variances(embeddings_dict)
     
     # split the embeddings into a part for training the mlp, and testing
     # if no mlp is trained, still only the test set is used for testing for a fair comparison
