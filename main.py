@@ -158,7 +158,9 @@ def main():
     parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
     parser.add_argument("--load_from_file", type=str, default="", help="Load embeddings from file")
     parser.add_argument("--subtract_means", default=False, action="store_true", help="Subtract language-wide means from embeddings")
-    parser.add_argument("--contrastive_learning", default=False, action="store_true", help="Apply an MLP on the embeddings that has been trained with contrastive learning")
+    parser.add_argument("--contrastive_learning", default=False, action="store_true", help="Apply an MLP on the embeddings that has been trained with contrastive learning")    
+    parser.add_argument("--reuse_mlp", default=False, action="store_true", help="Use mlp that is stored, or train a new one.")
+    parser.add_argument("--test_split", type=float, default=0.3, help="How much to use for the test set, the rest is used for training if necessary.")
 
     args = parser.parse_args()
     # args.self_prompts = True
@@ -177,12 +179,20 @@ def main():
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
     # plot_pca_means(embeddings_dict)
+    
+    # split the embeddings into a part for training the mlp, and testing
+    # if no mlp is trained, still only the test set is used for testing for a fair comparison
+    train_embeddings_dict, test_embeddings_dict = {}, {}
+    split_point = int(len(embeddings_dict["English"])* (1.-args.test_split))
+    for lang in embeddings_dict.keys(): 
+        train_embeddings_dict[lang] = embeddings_dict[lang][:split_point]
+        test_embeddings_dict[lang]  = embeddings_dict[lang][split_point:]
 
     if args.subtract_means:
         # acts inplace
         subtract_mean(embeddings_dict)
     if args.contrastive_learning:
-        contrastive_learning(embeddings_dict, name_suffix.split("_")[0])
+        contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args.reuse_mlp)
 
     all_results = []
 
@@ -190,7 +200,8 @@ def main():
         print(f"\nEvaluating target language: {target_language}")
 
         # Evaluate using the embeddings in the dictionary for current target language vs. other languages
-        results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=args.k)
+
+        results_table = evaluate_translation_accuracy(test_embeddings_dict, target_language, k=args.k)
 
         # Store the results for each comparison
         all_results += results_table

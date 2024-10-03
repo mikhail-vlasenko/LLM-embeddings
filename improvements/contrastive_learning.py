@@ -114,15 +114,17 @@ def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=1.0):
         for idx1, idx2 in neg_idx_pairs
     )
 
-    return pos_loss + neg_loss / (len(pos_idx_pairs) + len(neg_idx_pairs))
+    return (pos_loss + neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
     
-def contrastive_learning(embedding_dict, prompt_type):
+def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
     save_model_path = f"result/mlp_{prompt_type}_prompt.pt"
     num_sentences, embedding_dim = embedding_dict[list(embedding_dict.keys())[0]].shape
     batch_size = 32
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     try: # try to load the mlp
+        if not reuse_mlp: 
+            raise Exception() # go to the except case
         mlp = MLP(input_dim=embedding_dim, hidden_dim=embedding_dim // 2, output_dim=embedding_dim).to(device)
         mlp.load_state_dict(torch.load(save_model_path, weights_only=True))
     
