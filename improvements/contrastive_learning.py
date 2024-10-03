@@ -74,7 +74,9 @@ def collate_fn(embeddings):
     """
     embeddings = torch.stack(embeddings)
     batch_size, num_languages, _ = embeddings.shape
-    idx_pairs = get_random_idx_pairs(batch_size, num_languages, num_pos_pairs=batch_size // 2, num_neg_pairs=batch_size // 2)
+    positive_coef = 8  # increasing this to 8 helps for the norm-based loss but not for the cosine-based loss
+    idx_pairs = get_random_idx_pairs(batch_size, num_languages, num_pos_pairs=batch_size // positive_coef, num_neg_pairs=batch_size * (positive_coef - 1) // positive_coef)
+    # idx_pairs = get_random_idx_pairs(batch_size, num_languages, num_pos_pairs=batch_size // 2, num_neg_pairs=batch_size // 2)
     pos_idx_pairs, neg_idx_pairs = idx_pairs["pos"], idx_pairs["neg"]
 
     output_embeddings = {}
