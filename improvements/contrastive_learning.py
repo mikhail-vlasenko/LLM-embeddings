@@ -102,7 +102,7 @@ class MLP(nn.Module):
             self.hidden.append(nn.Linear(dim_a, hidden_dim))
             self.hidden.append(nn.ReLU())
         
-        self.fcout = nn.Linear(hidden_dim, output_dim)
+        self.fcout = nn.Linear(hidden_dim, output_dim) if n_hidden > 0 else nn.Linear(input_dim, output_dim)
     
     def forward(self, x):
         for layer in self.hidden:
@@ -173,7 +173,7 @@ def contrastive_learning(embedding_dict, prompt_type, args):
         # val_set = EmbeddingsDataset(get_split(embedding_dict, start_idx=train_size, end_idx=train_size + val_size), prompt_type=prompt_type)
 
         # do the training
-        epochs = 10
+        epochs = args.mlp_train_epochs
         
         # make the dataloaders
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=partial(collate_fn, args=args), drop_last=True)
