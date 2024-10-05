@@ -1,11 +1,14 @@
 import os
+from datetime import datetime
+
+def get_save_path():
+    return "result/hyperparameter_search/" + datetime.now().strftime("%Y-%m-%d-%H:%M:%S") + "/"
+    
 
 # make sure to put the default value first, for edge search
 hp_dict = {
     "--k": [1],
     "--batch_size": [8, 64, 256],
-    # TODO: make sure --self_prompts is added automatically!!
-    # "--self_prompts" [True, False],
     "--load_from_file": ["result/embedding_english_prompts.pkl", "result/embedding_self_prompts.pkl"],
     "--subtract_means": [False, True],
     "--contrastive_learning": [True],
@@ -17,6 +20,7 @@ hp_dict = {
     "--contrastive_loss_positive_coef": [2, 8, 16],
     "--contrastive_loss_margin": [0.5],
     "--contrastive_loss_C": [0.5, 0.2, 0.8],
+    "--save_path": [get_save_path()],
 }
 
 
@@ -34,15 +38,16 @@ def keyword_get_options(keyword, hp_dict):
         if isinstance(value, bool):
             options.append(keyword if value else "")
         else:
-            options.append(f'{keyword} {value} ')
+            if (keyword == "--load_from_file") and ("self_prompts" in value):
+                options.append(f'{keyword} {value} --self_prompts ')
+            else: 
+                options.append(f'{keyword} {value} ')
+            
+                    
     return options
 
 def keyword_get_default(keyword, hp_dict):
-    value = hp_dict[keyword][0]
-    if isinstance(value, bool):
-        return [keyword + " "  if value else ""]
-    else:
-        return [f'{keyword} {value} ']
+    return [keyword_get_options(keyword, hp_dict)[0]]
 
 def keyword_get_num_options(keyword, hp_dict):
     return len(hp_dict[keyword])
@@ -88,18 +93,22 @@ def commands_edge_search(hp_dict):
             for i in range(1, keyword_get_num_options(varying_keyword, hp_dict)):
                 commands.append(commands_almost_default_run(varying_keyword, i, hp_dict)[0])
     return commands
+
+
     
-    
-def run_commands(commands):
+def run_commands(commands, exp_name=""):
     for command in commands: 
         os.system(command)
 
-# 
-# print(len(commands_edge_search(hp_dict)))
+        
+# I should make a save_to folder in main and save the mean and 
 
 
+# for x in commands_vary_one_keyword("--mlp_output_dim", hp_dict): print(x)
+# print(len(commands_vary_one_keyword("--mlp_output_dim", hp_dict)))
 
-for x in commands_vary_one_keyword("--mlp_output_dim", hp_dict): print(x)
-print(len(commands_vary_one_keyword("--mlp_output_dim", hp_dict)))
+# run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
 
-run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
+
+print(commands_vary_one_keyword("--load_from_file", hp_dict))
+print(get_save_path())
