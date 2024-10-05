@@ -162,16 +162,15 @@ def main():
     parser.add_argument("--reuse_mlp", default=False, action="store_true", help="Use mlp that is stored, or train a new one.")
     parser.add_argument("--test_split", type=float, default=0.3, help="How much to use for the test set, the rest is used for training if necessary.")
     
-    # _______ For the hyperparameter search TODO: make sure this does something
-    parser.add_argument("--mlp_layers", type=int, default=1, help="How many hidden layers the mlp used for contrastive learning has.")
+    parser.add_argument("--mlp_n_hidden", type=int, default=1, help="How many hidden layers the mlp used for contrastive learning has.")
     parser.add_argument("--mlp_hidden_dim", type=int, default=1536, help="Dimension of hidden layers of mlp used for contrastive learning has.")
+    parser.add_argument("--mlp_output_dim", type=int, default=3072, help="Dimension of embeddings that the mlp with contrastive learning learns to produce.")
     parser.add_argument("--mlp_train_epochs", type=int, default=10, help="Amount of epochs mlp for contrastive learning is trained for.")
+        # _______ For the hyperparameter search TODO: make sure this does something
     parser.add_argument("--contrastive_loss_positive_coef", type=int, default=2, help="For contrastive learning, fraction of positive pairs compared to negative pairs. If its 8, 1/8 of the pairs are positive, and 7/8 are negative.")
     parser.add_argument("--contrastive_loss_margin", type=float, default=0.5, help="For contrastive learning, margin hyperparameter.")
-    parser.add_argument("--contrastive_loss_C", type=float, default=0.5, help="Formula for loss is: (C*pos_loss + (1-C)*neg_loss) / normalization")
-    
-    # __TODO: check if splitting the dataset is done correctly (and not twice)
-    # ___TODO: check if margin is implemented correctly
+    parser.add_argument("--contrastive_loss_C", type=float, default=0.5, help="Formula for loss is: 2*(C*pos_loss + (1-C)*neg_loss) / normalization")
+        # ___TODO: check if margin is implemented correctly
 
 
     args = parser.parse_args()
@@ -204,7 +203,7 @@ def main():
         # acts inplace
         subtract_mean(embeddings_dict)
     if args.contrastive_learning:
-        mlp = contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args.reuse_mlp)
+        mlp = contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args)
         apply_mlp(test_embeddings_dict, mlp)
 
     all_results = []

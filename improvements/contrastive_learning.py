@@ -92,16 +92,21 @@ def collate_fn(embeddings):
     return torch.stack(list(output_embeddings.values())), pos_idx_pairs, neg_idx_pairs
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    def __init__(self, input_dim, n_hidden, hidden_dim, output_dim):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
+        
+        self.hidden = nn.ModuleList()
+        for k in range(n_hidden):
+            dim_a = input_dim if k == 0 else hidden_dim
+            self.hidden.append(nn.Linear(dim_a, hidden_dim))
+            self.hidden.append(nn.ReLU())
+        
+        self.fcout = nn.Linear(hidden_dim, output_dim)
     
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
+        for layer in self.hidden:
+            x = layer(x)
+        x = self.fcout(x)
         return x
 
 # Define the contrastive loss
@@ -136,20 +141,25 @@ def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=0.5):
 def normalize_tensor(tensor):
     return tensor / torch.norm(tensor, dim=-1, keepdim=True)
  
-def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
+def contrastive_learning(embedding_dict, prompt_type, args):
     save_model_path = f"result/mlp_{prompt_type}_prompt.pt"
     num_sentences, embedding_dim = embedding_dict[list(embedding_dict.keys())[0]].shape
-    batch_size = 32
+    batch_size = args.batch_size
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     try: # try to load the mlp
-        if not reuse_mlp: 
+        if not args.reuse_mlp: 
             raise Exception() # go to the except case
-        mlp = MLP(input_dim=embedding_dim, hidden_dim=embedding_dim // 2, output_dim=embedding_dim).to(device)
+        mlp = MLP(
+            input_dim=embedding_dim, 
+            n_hidden=args.mlp_n_hidden, 
+            hidden_dim=args.mlp_hidden_dim, 
+            output_dim=args.mlp_output_dim
+        ).to(device)
         mlp.load_state_dict(torch.load(save_model_path, weights_only=True))
     
     except: 
-        # val set is not necessary if just training for a set amount of epochs
+        # define train,val,test sizes (70%, 30%)
         train_size, val_size = int(num_sentences*1.), int(num_sentences*0.)
 
         def get_split(embedding_dict, start_idx, end_idx):
@@ -157,17 +167,22 @@ def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
 
         # make the datasets
         train_set = EmbeddingsDataset(get_split(embedding_dict, start_idx=0, end_idx=train_size), prompt_type=prompt_type)
-        val_set = EmbeddingsDataset(get_split(embedding_dict, start_idx=train_size, end_idx=train_size + val_size), prompt_type=prompt_type)
+        # val_set = EmbeddingsDataset(get_split(embedding_dict, start_idx=train_size, end_idx=train_size + val_size), prompt_type=prompt_type)
 
         # do the training
         epochs = 10
         
         # make the dataloaders
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True)
-        val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, drop_last=True)
+        # val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, drop_last=True)
 
         # make the MLP and optimizer
-        mlp = MLP(input_dim=embedding_dim, hidden_dim=embedding_dim // 2, output_dim=embedding_dim).to(device)
+        mlp = MLP(
+            input_dim=embedding_dim, 
+            n_hidden=args.mlp_n_hidden, 
+            hidden_dim=args.mlp_hidden_dim, 
+            output_dim=args.mlp_output_dim
+        ).to(device)
         optimizer = torch.optim.SGD(mlp.parameters(), lr=0.001)
 
         # training loop: 
@@ -189,7 +204,7 @@ def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
             training_losses.append(train_loss / len(train_loader))
 
             # eval one epoch
-#             mlp.eval()
+            mlp.eval()
 #             val_loss = 0.0
 #             for (embeddings, pos_idx_pairs, neg_idx_pairs) in tqdm(val_loader, desc=f"Validation Epoch {epoch}"):
 #                 embeddings = mlp(embeddings.to(device))
