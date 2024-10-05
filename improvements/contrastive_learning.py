@@ -13,6 +13,7 @@ import random
 import itertools
 from utils import load_embeddings
 from tqdm import tqdm
+from functools import partial
 
 
 class EmbeddingsDataset(Dataset):
@@ -63,7 +64,7 @@ def get_random_idx_pairs(batch_size, num_languages, num_pos_pairs, num_neg_pairs
         "neg": random.sample(all_neg_idx_pairs, num_neg_pairs),
     }
 
-def collate_fn(embeddings):
+def collate_fn(embeddings, args):
     """
     embeddings: a tensor of size (batch_size, num_languages, embedding_dim)
 
@@ -74,7 +75,7 @@ def collate_fn(embeddings):
     """
     embeddings = torch.stack(embeddings)
     batch_size, num_languages, _ = embeddings.shape
-    positive_coef = 8  # increasing this to 8 helps for the norm-based loss but not for the cosine-based loss
+    positive_coef = args.contrastive_loss_positive_coef  # increasing this to 8 helps for the norm-based loss but not for the cosine-based loss
     idx_pairs = get_random_idx_pairs(batch_size, num_languages, num_pos_pairs=batch_size // positive_coef, num_neg_pairs=batch_size * (positive_coef - 1) // positive_coef)
     # idx_pairs = get_random_idx_pairs(batch_size, num_languages, num_pos_pairs=batch_size // 2, num_neg_pairs=batch_size // 2)
     pos_idx_pairs, neg_idx_pairs = idx_pairs["pos"], idx_pairs["neg"]
@@ -123,8 +124,9 @@ class MLP(nn.Module):
 
 #     return (pos_loss + neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
 
-def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=0.5):
+def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, args):
     cos = nn.CosineSimilarity(dim=0, eps=1e-6)
+    margin = args.contrastive_loss_margin
     
     pos_loss = sum(
         (1 - cos(embeddings[idx1], embeddings[idx2])) ** 2
@@ -135,8 +137,9 @@ def contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, margin=0.5):
         max(0, cos(embeddings[idx1], embeddings[idx2]) - margin) ** 2
         for idx1, idx2 in neg_idx_pairs
     )
-
-    return (pos_loss + neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
+    
+    C = args.contrastive_loss_C
+    return 2*(C*pos_loss + (1-C)*neg_loss) / (len(pos_idx_pairs) + len(neg_idx_pairs))
     
 def normalize_tensor(tensor):
     return tensor / torch.norm(tensor, dim=-1, keepdim=True)
@@ -173,8 +176,8 @@ def contrastive_learning(embedding_dict, prompt_type, args):
         epochs = 10
         
         # make the dataloaders
-        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True)
-        # val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, drop_last=True)
+        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=partial(collate_fn, args=args), drop_last=True)
+        # val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=partial(collate_fn, args=args), drop_last=True)
 
         # make the MLP and optimizer
         mlp = MLP(
@@ -195,7 +198,7 @@ def contrastive_learning(embedding_dict, prompt_type, args):
             for embeddings, pos_idx_pairs, neg_idx_pairs in tqdm(train_loader, desc=f"Train Epoch {epoch}"):
                 optimizer.zero_grad()
                 embeddings = mlp(embeddings.to(device))
-                loss = contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs)
+                loss = contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs, args)
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
