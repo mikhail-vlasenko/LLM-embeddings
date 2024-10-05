@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+import itertools
+from pathlib import Path
 
 def get_save_path():
     return "result/hyperparameter_search/" + datetime.now().strftime("%Y-%m-%d-%H:%M:%S") + "/"
@@ -16,11 +18,18 @@ hp_dict = {
     "--mlp_n_hidden": [0, 1, 2],
     "--mlp_hidden_dim": [1536, 100], 
     "--mlp_output_dim": [3072, 1000, 100],
-    "--mlp_train_epochs": [2, 20],
+    "--mlp_train_epochs": [20],
     "--contrastive_loss_positive_coef": [2, 8, 16],
     "--contrastive_loss_margin": [0.5],
     "--contrastive_loss_C": [0.5, 0.2, 0.8],
     "--save_path": [get_save_path()],
+}
+
+test_dict = {
+    'a': [1,2],
+    'b': [1,2],
+    'c': [1],
+    'd': [2],
 }
 
 
@@ -53,7 +62,14 @@ def keyword_get_num_options(keyword, hp_dict):
     
 def commands_grid_search(hp_dict):
     print(f'About to execute {calc_n_runs(hp_dict)} runs...')
-    pass
+    command_blocks = [[base_command]]
+    for keyword in hp_dict.keys():
+        command_blocks.append(keyword_get_options(keyword, hp_dict))
+    command_combos = list(itertools.product(*command_blocks))
+    commands = []
+    for keyword_list in command_combos:
+        commands.append("".join(keyword_list))
+    return commands
 
 def commands_default_run(hp_dict):
     '''
@@ -93,15 +109,25 @@ def commands_edge_search(hp_dict):
 
 
     
-def run_commands(commands, exp_name=""):
-    for command in commands: 
+def run_commands(commands):
+    print(f'running {len(commands)} experiments...')
+    save_path = commands[0].split("--save_path")[1].strip().split(" ")[0] 
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+    
+    for i, command in enumerate(commands): 
+        print(f'__________________________{i+1}/{len(commands)}_____________________________')
+        with open(save_path + 'metrics.txt', 'a') as file:
+            file.write('___________________________________________________\n')
+            file.write(str(command) + '\n')
         os.system(command)
 
         
-# I should make a save_to folder in main and save the mean and 
 
+# change this to run something else
+run_commands(
+    commands_edge_search(hp_dict)
+)
 
-run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
-
-# hp_dict['result'] = "20000"
-# print(hp_dict)
+# run_commands(
+#     commands_grid_search(hp_dict)
+# )
