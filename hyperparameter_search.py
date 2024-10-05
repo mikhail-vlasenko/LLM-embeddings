@@ -1,6 +1,6 @@
+import os
 
-
-
+# make sure to put the default value first, for edge search
 hp_dict = {
     "--k": [1],
     "--batch_size": [8, 64, 256],
@@ -13,7 +13,7 @@ hp_dict = {
     "--mlp_n_hidden": [0, 1, 2],
     "--mlp_hidden_dim": [1536, 100], 
     "--mlp_output_dim": [3072, 1000, 100],
-    "--mlp_train_epochs": [20],
+    "--mlp_train_epochs": [2, 20],
     "--contrastive_loss_positive_coef": [2, 8, 16],
     "--contrastive_loss_margin": [0.5],
     "--contrastive_loss_C": [0.5, 0.2, 0.8],
@@ -70,6 +70,12 @@ def commands_almost_default_run(keyword, i, hp_dict):
             continue
         command += keyword_get_default(keyword_other, hp_dict)[0]
     return [command]
+
+def commands_vary_one_keyword(keyword, hp_dict):
+    commands = []
+    for i in range(keyword_get_num_options(keyword, hp_dict)):
+        commands.append(commands_almost_default_run(keyword, i, hp_dict)[0])
+    return commands
     
 def commands_edge_search(hp_dict): 
     '''
@@ -84,17 +90,16 @@ def commands_edge_search(hp_dict):
     return commands
     
     
-# testing, remove later
-# print(keyword_get_options("--subtract_means", hp_dict))
-# print(keyword_get_options("--contrastive_learning", hp_dict))
-# print(keyword_get_options("--mlp_n_hidden", hp_dict))
-# print(keyword_get_default("--mlp_n_hidden", hp_dict))
-# print(keyword_get_num_options("--contrastive_learning", hp_dict))
-# print(keyword_get_num_options("--mlp_n_hidden", hp_dict))
-    
-# print(run_default(hp_dict))
+def run_commands(commands):
+    for command in commands: 
+        os.system(command)
 
-# print(get_almost_default_command("--mlp_n_hidden", 2, hp_dict))
+# 
+# print(len(commands_edge_search(hp_dict)))
 
-for x in commands_edge_search(hp_dict): print(x)
-print(len(commands_edge_search(hp_dict)))
+
+
+for x in commands_vary_one_keyword("--mlp_output_dim", hp_dict): print(x)
+print(len(commands_vary_one_keyword("--mlp_output_dim", hp_dict)))
+
+run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
