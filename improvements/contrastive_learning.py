@@ -149,8 +149,8 @@ def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
         mlp.load_state_dict(torch.load(save_model_path, weights_only=True))
     
     except: 
-        # define train,val,test sizes (70%, 30%)
-        train_size, val_size = int(num_sentences*0.7), int(num_sentences*0.3)
+        # val set is not necessary if just training for a set amount of epochs
+        train_size, val_size = int(num_sentences*1.), int(num_sentences*0.)
 
         def get_split(embedding_dict, start_idx, end_idx):
             return {k: v[start_idx:end_idx] for k, v in embedding_dict.items()}
@@ -189,15 +189,15 @@ def contrastive_learning(embedding_dict, prompt_type, reuse_mlp):
             training_losses.append(train_loss / len(train_loader))
 
             # eval one epoch
-            mlp.eval()
-            val_loss = 0.0
-            for (embeddings, pos_idx_pairs, neg_idx_pairs) in tqdm(val_loader, desc=f"Validation Epoch {epoch}"):
-                embeddings = mlp(embeddings.to(device))
-                loss = contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs)
-                val_loss += loss.item()
+#             mlp.eval()
+#             val_loss = 0.0
+#             for (embeddings, pos_idx_pairs, neg_idx_pairs) in tqdm(val_loader, desc=f"Validation Epoch {epoch}"):
+#                 embeddings = mlp(embeddings.to(device))
+#                 loss = contrastive_loss(embeddings, pos_idx_pairs, neg_idx_pairs)
+#                 val_loss += loss.item()
 
-            # save val loss
-            val_losses.append(val_loss / len(val_loader))
+#             # save val loss
+#             val_losses.append(val_loss / len(val_loader))
 
         # save model
         torch.save(mlp.state_dict(), save_model_path)
