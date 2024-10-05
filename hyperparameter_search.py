@@ -36,14 +36,13 @@ def keyword_get_options(keyword, hp_dict):
     options = [] 
     for value in hp_dict[keyword]:
         if isinstance(value, bool):
-            options.append(keyword if value else "")
+            options.append(keyword + " " if value else "")
         else:
             if (keyword == "--load_from_file") and ("self_prompts" in value):
                 options.append(f'{keyword} {value} --self_prompts ')
             else: 
                 options.append(f'{keyword} {value} ')
-            
-                    
+     
     return options
 
 def keyword_get_default(keyword, hp_dict):
@@ -52,8 +51,6 @@ def keyword_get_default(keyword, hp_dict):
 def keyword_get_num_options(keyword, hp_dict):
     return len(hp_dict[keyword])
     
-print(f'Grid search would require {calc_n_runs(hp_dict)} runs.')
-
 def commands_grid_search(hp_dict):
     print(f'About to execute {calc_n_runs(hp_dict)} runs...')
     pass
@@ -104,11 +101,7 @@ def run_commands(commands, exp_name=""):
 # I should make a save_to folder in main and save the mean and 
 
 
-# for x in commands_vary_one_keyword("--mlp_output_dim", hp_dict): print(x)
-# print(len(commands_vary_one_keyword("--mlp_output_dim", hp_dict)))
+run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
 
-# run_commands(commands_vary_one_keyword("--mlp_output_dim", hp_dict))
-
-
-print(commands_vary_one_keyword("--load_from_file", hp_dict))
-print(get_save_path())
+# hp_dict['result'] = "20000"
+# print(hp_dict)

@@ -13,6 +13,7 @@ from improvements.distribution_shift import subtract_mean
 from improvements.contrastive_learning import contrastive_learning, apply_mlp
 from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means_and_variances
 from tqdm import tqdm
+from pathlib import Path
 
 # Define the sentence template for each language
 template = {
@@ -148,6 +149,7 @@ def make_embeddings_dict(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, default="microsoft/Phi-3.5-mini-instruct", help="Transformers' model name or path")
+    parser.add_argument("--save_path", type=str, default="", help="Path to where to save the results to")
     parser.add_argument("--csv_path", type=str, default="sample_data.csv", help="Path to the CSV file with sentence pairs")
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
@@ -233,5 +235,13 @@ def main():
     print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
 
 
+    
+    args_dict = vars(args)
+    args_dict['metric_mean'] = np.nanmean(pivot_df.to_numpy())
+    if args.save_path != "":
+        Path(args.save_path).mkdir(parents=True, exist_ok=True)
+        with open(args.save_path + 'metrics.txt', 'a') as file:
+            file.write(str(args_dict) + '\n')
+    
 if __name__ == "__main__":
     main()
