@@ -18,6 +18,7 @@ pip install --user scikit-learn
 pip install --user datasets
 pip install --user pandas
 pip install --user 'seacrowd>=0.2.0'
+pip install --user seaborn
 
 # Run your code
 srun python main.py
