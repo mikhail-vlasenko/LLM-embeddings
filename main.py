@@ -10,8 +10,10 @@ from datasets import load_dataset
 from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
-from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means
+from improvements.contrastive_learning import contrastive_learning, apply_mlp
+from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means_and_variances
 from tqdm import tqdm
+from pathlib import Path
 
 # Define the sentence template for each language
 template = {
@@ -147,6 +149,7 @@ def make_embeddings_dict(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, default="microsoft/Phi-3.5-mini-instruct", help="Transformers' model name or path")
+    parser.add_argument("--save_path", type=str, default="", help="Path to where to save the results to")
     parser.add_argument("--csv_path", type=str, default="sample_data.csv", help="Path to the CSV file with sentence pairs")
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
@@ -157,6 +160,17 @@ def main():
     parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
     parser.add_argument("--load_from_file", type=str, default="", help="Load embeddings from file")
     parser.add_argument("--subtract_means", default=False, action="store_true", help="Subtract language-wide means from embeddings")
+    parser.add_argument("--contrastive_learning", default=False, action="store_true", help="Apply an MLP on the embeddings that has been trained with contrastive learning")    
+    parser.add_argument("--reuse_mlp", default=False, action="store_true", help="Use mlp that is stored, or train a new one.")
+    parser.add_argument("--test_split", type=float, default=0.3, help="How much to use for the test set, the rest is used for training if necessary.")
+    
+    parser.add_argument("--mlp_n_hidden", type=int, default=1, help="How many hidden layers the mlp used for contrastive learning has.")
+    parser.add_argument("--mlp_hidden_dim", type=int, default=1536, help="Dimension of hidden layers of mlp used for contrastive learning has.")
+    parser.add_argument("--mlp_output_dim", type=int, default=3072, help="Dimension of embeddings that the mlp with contrastive learning learns to produce.")
+    parser.add_argument("--mlp_train_epochs", type=int, default=10, help="Amount of epochs mlp for contrastive learning is trained for.")
+    parser.add_argument("--contrastive_loss_positive_coef", type=int, default=2, help="For contrastive learning, fraction of positive pairs compared to negative pairs. If its 8, 1/8 of the pairs are positive, and 7/8 are negative.")
+    parser.add_argument("--contrastive_loss_margin", type=float, default=0.5, help="For contrastive learning, margin hyperparameter.")
+    parser.add_argument("--contrastive_loss_C", type=float, default=0.5, help="Formula for loss is: 2*(C*pos_loss + (1-C)*neg_loss) / normalization")
 
     args = parser.parse_args()
     # args.self_prompts = True
@@ -166,6 +180,7 @@ def main():
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
     name_suffix += f"_sub_means" if args.subtract_means else ""
+    name_suffix += f"_contrastive_learning" if args.contrastive_learning else ""
 
     if args.load_from_file:
         embeddings_dict = load_embeddings(args.load_from_file)
@@ -173,11 +188,22 @@ def main():
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    # plot_pca_means(embeddings_dict)
+    plot_pca_means_and_variances(embeddings_dict)
+    
+    # split the embeddings into a part for training the mlp, and testing
+    # if no mlp is trained, still only the test set is used for testing for a fair comparison
+    train_embeddings_dict, test_embeddings_dict = {}, {}
+    split_point = int(len(embeddings_dict["English"])* (1.-args.test_split))
+    for lang in embeddings_dict.keys(): 
+        train_embeddings_dict[lang] = embeddings_dict[lang][:split_point]
+        test_embeddings_dict[lang]  = embeddings_dict[lang][split_point:]
 
     if args.subtract_means:
         # acts inplace
         subtract_mean(embeddings_dict)
+    if args.contrastive_learning:
+        mlp = contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args)
+        apply_mlp(test_embeddings_dict, mlp)
 
     all_results = []
 
@@ -185,7 +211,8 @@ def main():
         print(f"\nEvaluating target language: {target_language}")
 
         # Evaluate using the embeddings in the dictionary for current target language vs. other languages
-        results_table = evaluate_translation_accuracy(embeddings_dict, target_language, k=args.k)
+
+        results_table = evaluate_translation_accuracy(test_embeddings_dict, target_language, k=args.k)
 
         # Store the results for each comparison
         all_results += results_table
@@ -208,5 +235,13 @@ def main():
     print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
 
 
+    
+    args_dict = vars(args)
+    args_dict['metric_mean'] = np.nanmean(pivot_df.to_numpy())
+    if args.save_path != "":
+        Path(args.save_path).mkdir(parents=True, exist_ok=True)
+        with open(args.save_path + 'metrics.txt', 'a') as file:
+            file.write(str(args_dict) + '\n')
+    
 if __name__ == "__main__":
     main()
