@@ -1,4 +1,5 @@
 # enable importing from parent directory
+import math
 import os
 import sys
 parent_dir = os.path.split(os.getcwd())[0]
@@ -92,22 +93,56 @@ def collate_fn(embeddings, args):
     
     return torch.stack(list(output_embeddings.values())), pos_idx_pairs, neg_idx_pairs
 
+
+class LowRankLinear(nn.Module):
+    def __init__(self, in_features, out_features, rank):
+        super(LowRankLinear, self).__init__()
+        self.u = nn.Parameter(torch.Tensor(in_features, rank))
+        self.v = nn.Parameter(torch.Tensor(rank, out_features))
+        self.bias = nn.Parameter(torch.Tensor(out_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.u, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.v, a=math.sqrt(5))
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.u)
+        bound = 1 / math.sqrt(fan_in)
+        nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input):
+        return input @ self.u @ self.v + self.bias
+
+
 class MLP(nn.Module):
-    def __init__(self, input_dim, n_hidden, hidden_dim, output_dim):
+    def __init__(self, input_dim, n_hidden, hidden_dim, output_dim, rank=-1, do_skip_connections=False):
+        # rank = -1 is full rank
         super(MLP, self).__init__()
-        
-        self.hidden = nn.ModuleList()
+
+        self.layers = nn.ModuleList()
+        self.activation = nn.ReLU
+        self.do_skip_connections = do_skip_connections
+        if do_skip_connections:
+            assert input_dim == output_dim == hidden_dim, "Skip connections require input_dim == output_dim == hidden_dim"
+
+        def linear_layer(dim_a, dim_b):
+            if rank != -1:
+                return LowRankLinear(dim_a, dim_b, rank=rank)
+            else:
+                return nn.Linear(dim_a, dim_b)
+
+        dim_a = input_dim
         for k in range(n_hidden):
-            dim_a = input_dim if k == 0 else hidden_dim
-            self.hidden.append(nn.Linear(dim_a, hidden_dim))
-            self.hidden.append(nn.ReLU())
-        
-        self.fcout = nn.Linear(hidden_dim, output_dim) if n_hidden > 0 else nn.Linear(input_dim, output_dim)
+            self.layers.append(nn.Sequential(linear_layer(dim_a, hidden_dim), self.activation()))
+            dim_a = hidden_dim
+
+        self.layers.append(linear_layer(dim_a, output_dim))
     
     def forward(self, x):
-        for layer in self.hidden:
-            x = layer(x)
-        x = self.fcout(x)
+        for layer in self.layers:
+            if self.do_skip_connections:
+                x = x + layer(x)
+            else:
+                x = layer(x)
         return x
 
 # Define the contrastive loss
@@ -157,7 +192,9 @@ def contrastive_learning(embedding_dict, prompt_type, args):
             input_dim=embedding_dim, 
             n_hidden=args.mlp_n_hidden, 
             hidden_dim=args.mlp_hidden_dim, 
-            output_dim=args.mlp_output_dim
+            output_dim=args.mlp_output_dim,
+            rank=args.rank,
+            do_skip_connections=args.skip_connections
         ).to(device)
         mlp.load_state_dict(torch.load(save_model_path, weights_only=True))
     
