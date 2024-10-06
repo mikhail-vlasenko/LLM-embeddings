@@ -185,17 +185,19 @@ def contrastive_learning(embedding_dict, prompt_type, args):
     batch_size = args.batch_size
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    mlp = MLP(
+        input_dim=embedding_dim,
+        n_hidden=args.mlp_n_hidden,
+        hidden_dim=args.mlp_hidden_dim,
+        output_dim=args.mlp_output_dim,
+        rank=args.rank,
+        do_skip_connections=args.skip_connections
+    ).to(device)
+
     try: # try to load the mlp
         if not args.reuse_mlp: 
             raise Exception() # go to the except case
-        mlp = MLP(
-            input_dim=embedding_dim, 
-            n_hidden=args.mlp_n_hidden, 
-            hidden_dim=args.mlp_hidden_dim, 
-            output_dim=args.mlp_output_dim,
-            rank=args.rank,
-            do_skip_connections=args.skip_connections
-        ).to(device)
+
         mlp.load_state_dict(torch.load(save_model_path, weights_only=True))
     
     except: 
@@ -216,13 +218,6 @@ def contrastive_learning(embedding_dict, prompt_type, args):
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=partial(collate_fn, args=args), drop_last=True)
         # val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=partial(collate_fn, args=args), drop_last=True)
 
-        # make the MLP and optimizer
-        mlp = MLP(
-            input_dim=embedding_dim, 
-            n_hidden=args.mlp_n_hidden, 
-            hidden_dim=args.mlp_hidden_dim, 
-            output_dim=args.mlp_output_dim
-        ).to(device)
         optimizer = torch.optim.SGD(mlp.parameters(), lr=0.001)
 
         # training loop: 

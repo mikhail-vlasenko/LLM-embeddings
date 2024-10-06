@@ -178,11 +178,13 @@ def main():
     args = parser.parse_args()
     # args.self_prompts = True
     # args.subtract_means = True
-    args.contrastive_learning = True
-    args.k = 1
-    args.rank = 128
-    args.skip_connections = True
-    args.load_from_file = "embedding_english_prompts.pkl"
+    # args.contrastive_learning = True
+    # args.k = 1
+    # args.mlp_hidden_dim = 3072
+    # args.mlp_n_hidden = 1
+    # args.rank = 256
+    # args.skip_connections = True
+    # args.load_from_file = "embedding_english_prompts.pkl"
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
     name_suffix += f"_sub_means" if args.subtract_means else ""
