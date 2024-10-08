@@ -151,6 +151,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, default="microsoft/Phi-3.5-mini-instruct", help="Transformers' model name or path")
     parser.add_argument("--save_path", type=str, default="results", help="Path to where to save the results to")
+    parser.add_argument("--hyp_search", default=False, action="store_true", help="Running in a hyperparameter search")
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
     parser.add_argument("--k", type=int, default=3, help="The number of most similar items for recall (k)")
@@ -179,7 +180,11 @@ def main():
     # args.load_from_file = "embedding_english_prompts.pkl"
     save_path = Path(args.save_path) / datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
 
-    name_suffix += f"_{args.model_name_or_path.replace("/", "_")}"
+
+    save_path = Path(args.save_path) / datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    save_path.mkdir(parents=True, exist_ok=True)
+    hyp_search_save_path = Path(args.save_path) if args.hyp_search else None
+
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
     name_suffix += f"_sub_means" if args.subtract_means else ""
     name_suffix += f"_contrastive_learning" if args.contrastive_learning else ""
@@ -190,7 +195,11 @@ def main():
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    plot_pca_means_and_variances(embeddings_dict)
+    pca_plot_save_path = hyp_search_save_path if args.hyp_search else save_path
+    plot_pca_means_and_variances(
+        embeddings_dict=embeddings_dict,
+        save_path=pca_plot_save_path / f"pca_means_and_variances_{name_suffix}.png"
+    )
     
     # split the embeddings into a part for training the mlp, and testing
     # if no mlp is trained, still only the test set is used for testing for a fair comparison
@@ -222,26 +231,28 @@ def main():
     # Convert the list to a DataFrame
     df = pd.DataFrame(all_results)
 
-    df.to_csv(Path(args.save_path) / f'average_accuracy_results_{name_suffix}.csv', index=False)
+    df.to_csv(save_path / f'average_accuracy_results_{name_suffix}.csv', index=False)
 
     # Dynamically pivot the DataFrame based on target and compared languages
     pivot_df = df.pivot(index='Target Language', columns='Compared Language', values='Avg Recall@k')
 
     # Save the DataFrame to a CSV file
-    pivot_df.to_csv(f'average_accuracy_table_{name_suffix}.csv', index=True)
+    pivot_df.to_csv(save_path / f'average_accuracy_table_{name_suffix}.csv', index=True)
 
     print("\nFinal Results:")
     print(pivot_df)
 
-    save_heatmap_plot(pivot_df, f'Average Recall@{args.k} for {name_suffix}', f'average_accuracy_heatmap_{name_suffix}.png')
+    plot_heatmap(
+        data=pivot_df,
+        title=f'Average Recall@{args.k} for {name_suffix}',
+        save_path=save_path / f"average_accuracy_heatmap_{name_suffix}.png"
+    )
     print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
     
     args_dict = vars(args)
     args_dict['metric_mean'] = np.nanmean(pivot_df.to_numpy())
-    if args.save_path != "":
-        Path(args.save_path).mkdir(parents=True, exist_ok=True)
-        with open(args.save_path + 'metrics.txt', 'a') as file:
-            file.write(str(args_dict) + '\n')
+    with open((hyp_search_save_path if args.hyp_search else save_path) / 'metrics.txt', 'a') as file:
+        file.write(str(args_dict) + '\n')
     
 if __name__ == "__main__":
     main()

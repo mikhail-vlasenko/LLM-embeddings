@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from sklearn.decomposition import PCA
+from pathlib import Path
 
 
 def save_embeddings(embeddings_dict, filename):
@@ -16,14 +17,15 @@ def load_embeddings(filename):
         return pickle.load(f)
 
 
-def save_heatmap_plot(data, title, save_path):
+def plot_heatmap(data, title, save_path: Path):
     plt.figure(figsize=(12, 10), dpi=160)
     sns.heatmap(data, cmap='Blues', annot=True, fmt=".2f")
     plt.title(title)
     plt.savefig(save_path)
+    plt.close()
 
 
-def plot_pca_means_and_variances(embeddings_dict):
+def plot_pca_means_and_variances(embeddings_dict, save_path: Path):
     means = {lang: embeddings.mean(axis=0) for lang, embeddings in embeddings_dict.items()}
     variances = {lang: embeddings.var(axis=0) for lang, embeddings in embeddings_dict.items()}
 
@@ -50,4 +52,5 @@ def plot_pca_means_and_variances(embeddings_dict):
     plt.ylabel("Second Principal Component")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    plt.savefig(save_path)
+    plt.close()
