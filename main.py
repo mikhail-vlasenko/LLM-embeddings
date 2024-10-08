@@ -239,7 +239,7 @@ def main():
     print("\nFinal Results:")
     print(pivot_df)
 
-    # plot_heatmap(pivot_df, f'Average Recall@{args.k} for {name_suffix}')
+    plot_heatmap(pivot_df, f'Average Accuracy@{args.k} for English prompts with mean subtraction')
     print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
     
     args_dict = vars(args)

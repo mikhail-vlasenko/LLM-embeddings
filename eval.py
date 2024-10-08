@@ -62,8 +62,8 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     results_table = []
     for lang_name in avg_recall_1_per_language:
         results_table.append({
-            'Target Language': target_language,
-            'Compared Language': lang_name,
+            'Target Language': rename_chinese(target_language),
+            'Compared Language': rename_chinese(lang_name),
             'Avg Recall@1': avg_recall_1_per_language[lang_name],
             'Avg Recall@k': avg_recall_k_per_language[lang_name]
         })
@@ -73,6 +73,11 @@ def evaluate_translation_accuracy(embeddings_dict, target_language, k=3):
     print(results_df)
 
     return results_table
+
+def rename_chinese(lang):
+    if lang == 'Chinese_Simplified':
+        return 'Chinese'
+    return lang
 
 
 embs = np.array([[1.,2.,3.], 
