@@ -11,7 +11,7 @@ from data import FloresMultiLangDataset, compare_languages, collate_fn
 from eval import evaluate_translation_accuracy
 from improvements.distribution_shift import subtract_mean
 from improvements.contrastive_learning import contrastive_learning, apply_mlp
-from utils import save_embeddings, save_heatmap_plot, load_embeddings, plot_pca_means_and_variances
+from utils import save_embeddings, plot_heatmap, load_embeddings, plot_pca_means_and_variances
 from tqdm import tqdm
 from pathlib import Path
 from datetime import datetime
@@ -186,6 +186,7 @@ def main():
     hyp_search_save_path = Path(args.save_path) if args.hyp_search else None
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
+    name_suffix += f"_{args.model_name_or_path.split('/')[-1]}"
     name_suffix += f"_sub_means" if args.subtract_means else ""
     name_suffix += f"_contrastive_learning" if args.contrastive_learning else ""
 
@@ -193,7 +194,7 @@ def main():
         embeddings_dict = load_embeddings(args.load_from_file)
     else:
         embeddings_dict = make_embeddings_dict(args)
-        save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
+        save_embeddings(embeddings_dict, Path(args.save_path) / f"embedding_{name_suffix}.pkl")
 
     pca_plot_save_path = hyp_search_save_path if args.hyp_search else save_path
     plot_pca_means_and_variances(

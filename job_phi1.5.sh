@@ -2,7 +2,7 @@
 
 #SBATCH --partition=gpu
 #SBATCH --gpus=1
-#SBATCH --job-name=phi3
+#SBATCH --job-name=phi1.5
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=00:30:00
@@ -23,6 +23,6 @@ pip install --user --force-reinstall 'numpy>=1.23,<2.0'
 
 # Run your code
 srun python main.py \
-    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
-    --save_path results/phi3 \
+    --model_name_or_path microsoft/phi-1_5\
+    --save_path results/phi1.5 \
     --subtract_means
