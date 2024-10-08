@@ -47,7 +47,7 @@ def plot_pca_means_and_variances(embeddings_dict, save_path: Path):
                      yerr=np.sqrt(abs(reduced_vars[i, 1])),
                      fmt='none', alpha=0.3, capsize=5)
 
-    plt.title("PCA of Language Embedding Means with Variances")
+    plt.title("PCA of Language Embedding Means with Variances for Self prompts")
     plt.xlabel("First Principal Component")
     plt.ylabel("Second Principal Component")
     plt.legend()
