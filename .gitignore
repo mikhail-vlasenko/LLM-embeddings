@@ -4,4 +4,5 @@ venv
 **/*.pkl
 **/*.pt
 **/*.csv
-result/hyperparameter_search/
+results
+result

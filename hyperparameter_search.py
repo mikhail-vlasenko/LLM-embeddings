@@ -2,9 +2,6 @@ import os
 from datetime import datetime
 import itertools
 from pathlib import Path
-
-def get_save_path():
-    return "result/hyperparameter_search/" + datetime.now().strftime("%Y-%m-%d-%H:%M:%S") + "/"
     
 
 # make sure to put the default value first, for edge search
@@ -22,7 +19,8 @@ hp_dict = {
     "--contrastive_loss_positive_coef": [2, 4, 8],
     "--contrastive_loss_margin": [0.5],
     "--contrastive_loss_C": [0.5, 0.2, 0.8],
-    "--save_path": [get_save_path()],
+    "--save_path": [Path("results/hyp_search/") / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")],
+    "--hyp_search": [True], # this is to make sure that metrics are saved in the right place
 }
 
 test_dict = {
@@ -111,12 +109,12 @@ def commands_edge_search(hp_dict):
     
 def run_commands(commands):
     print(f'running {len(commands)} experiments...')
-    save_path = commands[0].split("--save_path")[1].strip().split(" ")[0] 
-    Path(save_path).mkdir(parents=True, exist_ok=True)
+    save_path = Path(commands[0].split("--save_path")[1].strip().split(" ")[0]) 
+    save_path.mkdir(parents=True, exist_ok=True)
     
     for i, command in enumerate(commands): 
         print(f'__________________________{i+1}/{len(commands)}_____________________________')
-        with open(save_path + 'metrics.txt', 'a') as file:
+        with open(save_path / 'metrics.txt', 'a') as file:
             file.write('___________________________________________________\n')
             file.write(str(command) + '\n')
         os.system(command)
