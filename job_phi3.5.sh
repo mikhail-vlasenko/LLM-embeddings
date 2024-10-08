@@ -21,4 +21,4 @@ pip install --user 'seacrowd>=0.2.0'
 pip install --user seaborn
 
 # Run your code
-srun python main.py
+srun python main.py --save_path results/phi3.5

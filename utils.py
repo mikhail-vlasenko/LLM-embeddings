@@ -16,11 +16,11 @@ def load_embeddings(filename):
         return pickle.load(f)
 
 
-def plot_heatmap(data, title):
+def save_heatmap_plot(data, title, save_path):
     plt.figure(figsize=(12, 10), dpi=160)
     sns.heatmap(data, cmap='Blues', annot=True, fmt=".2f")
     plt.title(title)
-    plt.show()
+    plt.savefig(save_path)
 
 
 def plot_pca_means_and_variances(embeddings_dict):

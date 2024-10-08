@@ -1,9 +1,7 @@
-<<<<<<< HEAD
-**/*.pkl
-=======
 venv
 *.out
-**/__pycache__/
+**/__pycache__
 **/*.pkl
 **/*.pt
->>>>>>> c8e387ef47382bdff9c5a846233e63b69f83d813
+**/*.csv
+result

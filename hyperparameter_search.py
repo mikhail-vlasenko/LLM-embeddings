@@ -4,7 +4,7 @@ import itertools
 from pathlib import Path
 
 def get_save_path():
-    return "result/hyperparameter_search/" + datetime.now().strftime("%Y-%m-%d-%H:%M:%S") + "/"
+    return "result/hyperparameter_search/"
     
 
 # make sure to put the default value first, for edge search
