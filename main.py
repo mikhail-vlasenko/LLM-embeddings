@@ -154,7 +154,7 @@ def main():
     parser.add_argument("--load_kbit", type=int, choices=[4, 8, 16], default=16, help="Load model in kbit")
     parser.add_argument('--avg', action='store_true', help="Use average pooling for embeddings")
     parser.add_argument("--k", type=int, default=3, help="The number of most similar items for recall (k)")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for DataLoader")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for DataLoader")
     parser.add_argument("--dataset_name", type=str, default='facebook/flores', help="Name of the dataset to load")
     parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to load from the dataset")
     parser.add_argument("--self_prompts", default=False, action="store_true", help="Use prompt template in the same language")
@@ -167,15 +167,23 @@ def main():
     parser.add_argument("--mlp_n_hidden", type=int, default=1, help="How many hidden layers the mlp used for contrastive learning has.")
     parser.add_argument("--mlp_hidden_dim", type=int, default=1536, help="Dimension of hidden layers of mlp used for contrastive learning has.")
     parser.add_argument("--mlp_output_dim", type=int, default=3072, help="Dimension of embeddings that the mlp with contrastive learning learns to produce.")
-    parser.add_argument("--mlp_train_epochs", type=int, default=10, help="Amount of epochs mlp for contrastive learning is trained for.")
+    parser.add_argument("--mlp_train_epochs", type=int, default=20, help="Amount of epochs mlp for contrastive learning is trained for.")
     parser.add_argument("--contrastive_loss_positive_coef", type=int, default=2, help="For contrastive learning, fraction of positive pairs compared to negative pairs. If its 8, 1/8 of the pairs are positive, and 7/8 are negative.")
     parser.add_argument("--contrastive_loss_margin", type=float, default=0.5, help="For contrastive learning, margin hyperparameter.")
     parser.add_argument("--contrastive_loss_C", type=float, default=0.5, help="Formula for loss is: 2*(C*pos_loss + (1-C)*neg_loss) / normalization")
+    parser.add_argument("--rank", type=int, default=-1, help="Rank for lora.")
+    parser.add_argument("--skip_connections", default=False, action="store_true", help="Use skip connections in the mlp for contrastive learning.")
+
 
     args = parser.parse_args()
     # args.self_prompts = True
     # args.subtract_means = True
+    # args.contrastive_learning = True
     # args.k = 1
+    # args.mlp_hidden_dim = 3072
+    # args.mlp_n_hidden = 1
+    # args.rank = 256
+    # args.skip_connections = True
     # args.load_from_file = "embedding_english_prompts.pkl"
 
     name_suffix = 'self_prompts' if args.self_prompts else 'english_prompts'
@@ -188,19 +196,19 @@ def main():
         embeddings_dict = make_embeddings_dict(args)
         save_embeddings(embeddings_dict, f"embedding_{name_suffix}.pkl")
 
-    plot_pca_means_and_variances(embeddings_dict)
+    # plot_pca_means_and_variances(embeddings_dict)
     
     # split the embeddings into a part for training the mlp, and testing
     # if no mlp is trained, still only the test set is used for testing for a fair comparison
     train_embeddings_dict, test_embeddings_dict = {}, {}
-    split_point = int(len(embeddings_dict["English"])* (1.-args.test_split))
+    split_point = int(len(embeddings_dict["English"]) * (1.-args.test_split))
     for lang in embeddings_dict.keys(): 
         train_embeddings_dict[lang] = embeddings_dict[lang][:split_point]
         test_embeddings_dict[lang]  = embeddings_dict[lang][split_point:]
 
     if args.subtract_means:
         # acts inplace
-        subtract_mean(embeddings_dict)
+        subtract_mean(train_embeddings_dict, test_embeddings_dict)
     if args.contrastive_learning:
         mlp = contrastive_learning(train_embeddings_dict, name_suffix.split("_")[0], args)
         apply_mlp(test_embeddings_dict, mlp)
@@ -231,10 +239,8 @@ def main():
     print("\nFinal Results:")
     print(pivot_df)
 
-    plot_heatmap(pivot_df, f'Average Recall@{args.k} for {name_suffix}')
+    # plot_heatmap(pivot_df, f'Average Recall@{args.k} for {name_suffix}')
     print(f"Overall mean over the primary metric: {np.nanmean(pivot_df.to_numpy())}")
-
-
     
     args_dict = vars(args)
     args_dict['metric_mean'] = np.nanmean(pivot_df.to_numpy())
@@ -242,6 +248,7 @@ def main():
         Path(args.save_path).mkdir(parents=True, exist_ok=True)
         with open(args.save_path + 'metrics.txt', 'a') as file:
             file.write(str(args_dict) + '\n')
-    
+
+
 if __name__ == "__main__":
     main()

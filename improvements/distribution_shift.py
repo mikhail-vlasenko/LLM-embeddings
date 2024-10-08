@@ -1,3 +1,3 @@
-def subtract_mean(embeddings_dict):
-    for lang in embeddings_dict:
-        embeddings_dict[lang] -= embeddings_dict[lang].mean(axis=0)
+def subtract_mean(train_embeddings_dict, test_embeddings_dict):
+    for lang in test_embeddings_dict:
+        test_embeddings_dict[lang] -= train_embeddings_dict[lang].mean(axis=0)
