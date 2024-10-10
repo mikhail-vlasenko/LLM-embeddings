@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=06:00:00
-#SBATCH --output=slurm_output_%A.out
+#SBATCH --output=jobs/outputs/hyp_search_%A.out
 
 module load 2023
 module load Anaconda3/2023.07-2

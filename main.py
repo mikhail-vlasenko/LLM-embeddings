@@ -56,7 +56,10 @@ def get_embeddings(model, tokenizer, sentences, device, language, args):
             sentence = template[language].format(sentence=sentence)
         else:
             sentence = template["English"].format(sentence=sentence)
-        inputs = tokenizer(sentence, return_tensors='pt', padding=True, truncation=True, max_length=512)
+        
+        print(f"tokenizer.pad_token_id={tokenizer.pad_token_id}")
+
+        inputs = tokenizer(sentence, return_tensors='pt', padding=False, truncation=True, max_length=512)
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
         # Get raw embeddings
@@ -102,13 +105,15 @@ def make_embeddings_dict(args):
             device_map='auto',
         )
     else:
-        model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path,
-                                                     device_map='auto',
-                                                     output_hidden_states=True,
-                                                     trust_remote_code=True,
-                                                     load_in_8bit=args.load_kbit == 8)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_name_or_path,
+            device_map='auto',
+            output_hidden_states=True,
+            trust_remote_code=True,
+            load_in_8bit=args.load_kbit == 8
+        )
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
 
