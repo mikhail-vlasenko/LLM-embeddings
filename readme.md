@@ -1,53 +1,51 @@
-# README
+# Multilingual Sentence Embeddings with LLMs
+
+This repository contains code for generating multilingual sentence embeddings using autoregressive Large Language Models (LLMs). The project implements several enhancements, including mean shift techniques, Multi-Layer Perceptrons (MLP) for contrastive learning, and low-rank linear layers for improved efficiency.
+
+## Table of Contents
+
+- [Features](#features)
+- [Usage](#usage)
+- [Dataset](#dataset)
+- [Results](#results)
+
+
+## Features
+
+- Generate sentence embeddings in multiple languages using LLMs.
+- Apply mean shift techniques to align embedding distributions.
+- Use a Multi-Layer Perceptron (MLP) for contrastive learning.
+- Implement low-rank linear layers to enhance efficiency.
+- Evaluate embeddings using cross-lingual retrieval tasks.
+- Save and load embeddings from files for later use.
+
 
 ## Usage
 
-### Command Line Arguments
-
-The script can be run from the command line with the following options:
+1. **Run the script**: Use the following command to execute the main script:
 
 ```bash
-python main.py --model_name_or_path <model> --csv_path <path> --load_kbit <4|8|16> --avg --k <number> --batch_size <number> --dataset_name <dataset> --max_samples <number>
+python main.py --model_name_or_path <MODEL_PATH> --dataset_name <DATASET_NAME>
 ```
 
-#### Options:
+Replace `<MODEL_PATH>` with the desired model path (e.g., `microsoft/Phi-3.5-mini-instruct`) and `<DATASET_NAME>` with the dataset you wish to use (e.g., `facebook/flores`).
 
-- `--model_name_or_path`: The name or path of the transformer model to use (default: `microsoft/Phi-3.5-mini-instruct`).
-- `--csv_path`: Path to the CSV file containing sentence pairs (default: `sample_data.csv`).
-- `--load_kbit`: Load model in kbit (choices: 4, 8, 16; default: 16).
-- `--avg`: Use average pooling for embeddings (optional).
-- `--k`: Number of most similar items for recall (default: 3).
-- `--batch_size`: Batch size for DataLoader (default: 1).
-- `--dataset_name`: The name of the dataset to load (default: `Muennighoff/flores200`).
-- `--max_samples`: Maximum number of samples to load from the dataset (default: None).
+2. **Available Arguments**:
+   - `--model_name_or_path`: Path to the pre-trained model.
+   - `--save_path`: Directory to save results.
+   - `--csv_path`: Path to the CSV file containing sentence pairs.
+   - `--load_kbit`: Specify model quantization (options: 4, 8, 16).
+   - `--avg`: Use average pooling for embeddings.
+   - `--batch_size`: Specify the batch size for DataLoader.
+   - `--max_samples`: Limit the number of samples loaded from the dataset.
+   - `--self_prompts`: Use prompt templates in the same language.
+   - `--subtract_means`: Subtract language-wide means from embeddings.
+   - `--contrastive_learning`: Apply MLP trained with contrastive learning.
 
-### Example
+## Dataset
 
-To run the script with the default settings:
+The project utilizes the FLORES dataset, which contains multilingual sentence pairs for evaluation. Ensure the dataset is accessible or specify the dataset name when running the script.
 
-```bash
-python main.py
-```
+## Results
 
-To specify custom parameters, for example, using a different model and loading a limited number of samples:
-
-```bash
-python main.py --model_name_or_path "your_model_name" --max_samples 100
-```
-
-## Output
-
-The script will generate the following outputs:
-
-1. **embedding.csv**: Contains the generated embeddings for each language.
-2. **average_accuracy_results.csv**: Stores the results of the translation accuracy evaluation.
-3. **average_accuracy_table.csv**: A pivoted table of average recall results.
-
-## Acknowledgments
-
-- [Hugging Face Transformers](https://huggingface.co/docs/transformers/index)
-- [FLORES-200 Dataset](https://huggingface.co/datasets/Muennighoff/flores200)
-- [PyTorch](https://pytorch.org/) for the deep learning framework.
-
----
-
+The performance of the embeddings can be evaluated using the `evaluate_translation_accuracy` function. Results are saved as CSV files, including average accuracy metrics across different languages.
