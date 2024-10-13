@@ -8,8 +8,8 @@
 #SBATCH --time=06:00:00
 #SBATCH --output=slurm_output_%A.out
 
-module load 2022 
-module load Anaconda3/2022.05 
+module load 2023
+module load Anaconda3/2023.07-2
 module load torchvision/0.13.1-foss-2022a-CUDA-11.7.0 
 
 pip install --user transformers
@@ -19,7 +19,7 @@ pip install --user datasets
 pip install --user pandas
 pip install --user 'seacrowd>=0.2.0'
 pip install --user seaborn
-pip install --user 'numpy>=1.23,<2.0'
+pip install --user --force-reinstall 'numpy>=1.23,<2.0'
 
 # Run your code
-srun python main.py
+srun python hyperparameter_search.py
